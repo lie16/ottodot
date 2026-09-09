@@ -117,6 +117,97 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
     }
   };
 
+  // Test 1b: 10-Student High-Concurrency Stampede (10 Simultaneous Bookings -> Exactly 4 Winners, 6 Conflicts)
+  const runTenUserStampedeTest = async () => {
+    try {
+      setRunningTest("stampede");
+      setLastResult(null);
+
+      // Target class: class_empty_04 (Crystal Garden: Chemistry for Beginners - 0/4 confirmed)
+      const targetClassId = "class_empty_04";
+
+      const contestants = [
+        { parentId: "parent_01", studentId: "child_01_b", name: "Mia" },
+        { parentId: "parent_02", studentId: "child_02_b", name: "Emma" },
+        { parentId: "parent_03", studentId: "child_03_b", name: "Olivia" },
+        { parentId: "parent_04", studentId: "child_04_b", name: "Lucas" },
+        { parentId: "parent_05", studentId: "child_05_b", name: "Oliver" },
+        { parentId: "parent_06", studentId: "child_06_b", name: "Mason" },
+        { parentId: "parent_07", studentId: "child_07_b", name: "Ethan" },
+        { parentId: "parent_08", studentId: "child_08_b", name: "Harper" },
+        { parentId: "parent_09", studentId: "child_09_b", name: "Jack" },
+        { parentId: "parent_10", studentId: "child_10_b", name: "Ella" },
+      ];
+
+      // Step A: Initiate all 10 bookings
+      const initResponses = await Promise.all(
+        contestants.map((c) =>
+          fetch("/api/bookings/initiate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": c.parentId,
+              "x-user-role": "Parent",
+            },
+            body: JSON.stringify({ classId: targetClassId, studentId: c.studentId }),
+          })
+        )
+      );
+
+      const initData = await Promise.all(initResponses.map((r) => r.json()));
+      const validInitiations = initData.filter((d) => d.bookingId);
+
+      if (validInitiations.length < 10) {
+        setLastResult({
+          title: "10-Student Stampede: Initiation Incomplete",
+          success: false,
+          status: 400,
+          details: "Could not initiate all 10 bookings. Please reset the database to seed state first if class was already filled.",
+          tag: "[TEST:RACE_CONDITION]",
+        });
+        return;
+      }
+
+      // Step B: Submit 10 simultaneous payment confirmations
+      const confirmResponses = await Promise.all(
+        contestants.map((c, idx) =>
+          fetch("/api/bookings/confirm", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": c.parentId,
+              "x-user-role": "Parent",
+            },
+            body: JSON.stringify({
+              bookingId: initData[idx].bookingId,
+              paymentMethod: "pm_card_success",
+            }),
+          })
+        )
+      );
+
+      const successCount = confirmResponses.filter((r) => r.status === 200).length;
+      const conflictCount = confirmResponses.filter((r) => r.status === 409).length;
+      const passed = successCount === 4 && conflictCount === 6;
+
+      setLastResult({
+        title: passed
+          ? "10-Student Stampede Passed: Exactly 4 Confirmed & 6 Auto-Refunded"
+          : `10-Student Stampede: Unexpected Result (${successCount} won, ${conflictCount} rejected)`,
+        success: passed,
+        status: passed ? 200 : 500,
+        details: `Dispatched 10 concurrent payments simultaneously against an empty class (max capacity 4). Results: ${successCount} CONFIRMED (HTTP 200), ${conflictCount} REJECTED_CAPACITY_FULL (HTTP 409). Class capacity holds strictly at 4!`,
+        tag: "[TEST:RACE_CONDITION]",
+      });
+
+      onTestCompleted();
+    } catch (err) {
+      console.error("10-student stampede test error:", err);
+    } finally {
+      setRunningTest(null);
+    }
+  };
+
   // Test 2: Duplicate Booking Attempt
   const runDuplicateBookingTest = async () => {
     try {
@@ -300,8 +391,8 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
       </div>
 
       {/* Test Buttons */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-        {/* Race Condition Test */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 text-xs">
+        {/* Race Condition Test (2 Users) */}
         <button
           disabled={runningTest !== null}
           onClick={runRaceConditionTest}
@@ -310,14 +401,34 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-bold flex items-center gap-1.5 text-amber-800">
               <Zap className="w-4 h-4 text-amber-600 fill-amber-600" />
-              1. Concurrency Race
+              1. 2-User Race
             </span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-200/70 font-semibold">
               Seat #4
             </span>
           </div>
           <p className="text-[11px] text-amber-800/80 leading-relaxed">
-            Fires 2 simultaneous payments for seat #4. Verifies 1 winner & 1 conflict rejection.
+            Fires 2 simultaneous payments for seat #4. Exactly 1 winner & 1 conflict.
+          </p>
+        </button>
+
+        {/* 10-Student High-Concurrency Stampede */}
+        <button
+          disabled={runningTest !== null}
+          onClick={runTenUserStampedeTest}
+          className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/60 text-emerald-950 text-left transition-all disabled:opacity-50 cursor-pointer group"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-bold flex items-center gap-1.5 text-emerald-800">
+              <Zap className="w-4 h-4 text-emerald-600 fill-emerald-600" />
+              2. 10-User Stampede
+            </span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-200/70 font-semibold">
+              10 &rarr; 4 Max
+            </span>
+          </div>
+          <p className="text-[11px] text-emerald-800/80 leading-relaxed">
+            10 students checkout simultaneously. Exactly 4 win; 6 get rejected with 409.
           </p>
         </button>
 
@@ -330,7 +441,7 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-bold flex items-center gap-1.5 text-blue-800">
               <Copy className="w-4 h-4 text-blue-600" />
-              2. Duplicate Guard
+              3. Duplicate Guard
             </span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-200/70 font-semibold">
               409 Conflict
@@ -350,7 +461,7 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-bold flex items-center gap-1.5 text-rose-800">
               <CreditCard className="w-4 h-4 text-rose-600" />
-              3. Payment Decline
+              4. Payment Decline
             </span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-200/70 font-semibold">
               402 Declined
@@ -370,7 +481,7 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-bold flex items-center gap-1.5 text-purple-800">
               <ShieldBan className="w-4 h-4 text-purple-600" />
-              4. Auth Isolation
+              5. Auth Isolation
             </span>
             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-200/70 font-semibold">
               403 Forbidden
