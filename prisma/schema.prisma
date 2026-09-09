@@ -1,0 +1,114 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  PAYMENT_FAILED
+  REJECTED_CAPACITY_FULL
+  CANCELLED
+}
+
+enum PaymentStatus {
+  SUCCESS
+  FAILED
+}
+
+model Teacher {
+  id        String       @id @default(cuid())
+  name      String
+  email     String       @unique
+  specialty String
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  classes   TrialClass[]
+
+  @@map("teachers")
+}
+
+model Parent {
+  id        String    @id @default(cuid())
+  name      String
+  email     String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  children  Student[]
+
+  @@map("parents")
+}
+
+model Student {
+  id        String    @id @default(cuid())
+  parentId  String    @map("parent_id")
+  name      String
+  age       Int
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  parent    Parent    @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+
+  @@map("students")
+}
+
+model TrialClass {
+  id             String        @id @default(cuid())
+  title          String
+  subject        String
+  teacherId      String        @map("teacher_id")
+  startTime      DateTime      @map("start_time")
+  maxCapacity    Int           @default(4) @map("max_capacity")
+  confirmedCount Int           @default(0) @map("confirmed_count")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  teacher        Teacher       @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  bookings       Booking[]
+
+  @@map("trial_classes")
+}
+
+model Booking {
+  id              String           @id @default(cuid())
+  classId         String           @map("class_id")
+  studentId       String           @map("student_id")
+  status          BookingStatus    @default(PENDING_PAYMENT)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  trialClass      TrialClass       @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student         Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  paymentAttempts PaymentAttempt[]
+
+  @@map("bookings")
+}
+
+model PaymentAttempt {
+  id             String        @id @default(cuid())
+  bookingId      String        @map("booking_id")
+  amount         Decimal       @db.Decimal(10, 2)
+  currency       String        @default("SGD")
+  status         PaymentStatus
+  paymentMethod  String        @map("payment_method")
+  transactionRef String        @unique @map("transaction_ref")
+  failureReason  String?       @map("failure_reason")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  booking        Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("payment_attempts")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  level     String   @default("INFO")
+  tag       String
+  event     String
+  details   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
