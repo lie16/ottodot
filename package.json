@@ -14,7 +14,8 @@
     "db:reset": "tsx prisma/reset.ts",
     "test": "vitest run",
     "test:concurrency": "vitest run tests/concurrency.test.ts",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "logs": "tsx scripts/view_logs.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
