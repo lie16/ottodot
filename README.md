@@ -7,7 +7,7 @@ Reliable trial booking system slice for live online science and math classes for
 ## 🚀 Quickstart
 
 ### Prerequisites
-- Node.js 18+ & npm
+- Node.js 18+ & pnpm
 - PostgreSQL running locally or via Docker
 - Configured `.env.local` (see `.env.example`)
 
@@ -48,11 +48,11 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## ⏱️ Time Spent
 - Target timebox: 3–4 hours.
 - Breakdown:
-  - Architecture, schema design, and modular documentation: 45 mins
-  - Backend database invariants, Prisma ORM, and atomic locking transactions: 1 hr
-  - API routes, persona authorization middleware, and state machine: 45 mins
-  - Interactive UI, Live Audit Log feed, and test runner: 45 mins
-  - Concurrency test suites, seed scripts, and verification: 30 mins
+  - Architecture, schema design, and modular documentation: 1 hr
+  - Backend database invariants, Prisma ORM, and atomic locking transactions: 30 m
+  - API routes, persona authorization middleware, and state machine: 30 mins
+  - Interactive UI, Live Audit Log feed, and test runner: 30 mins
+  - Concurrency test suites, seed scripts, and verification: 1 hr
 
 ---
 
@@ -71,6 +71,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - Real Stripe / payment gateway webhooks (mocked via deterministic tokens).
 - Full user authentication / password hashing (replaced with a multi-role persona switcher for rapid evaluation).
 - Regular recurring enrollment and subscription billing (scoped strictly to trial bookings).
+- Refund method
 
 ---
 
@@ -85,3 +86,8 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - Implement Redis distributed locking for multi-region database scaling.
 - Webhook-driven asynchronous payment fulfillment with idempotent event deduplication.
 - Automated email/SMS notification queues for parents upon confirmed enrollment.
+- Actual payment integration with refund
+- Proper UI
+- Class reminder and scheduling
+- Auditable log either grafana or elk
+- Well I think there are a lot to be implemented for ecommerce with school based method that had teacher and schedule.

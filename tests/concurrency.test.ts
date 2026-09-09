@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { POST as confirmBooking } from "@/app/api/bookings/confirm/route";
+import { POST as initiateBooking } from "@/app/api/bookings/initiate/route";
 import { prisma } from "@/lib/prisma";
 import { runSeed } from "@/prisma/seed";
-import { POST as initiateBooking } from "@/app/api/bookings/initiate/route";
-import { POST as confirmBooking } from "@/app/api/bookings/confirm/route";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 describe("Concurrency Test Suite: Last-Seat Race Condition", () => {
   beforeAll(async () => {
@@ -121,7 +121,7 @@ describe("Concurrency Test Suite: Last-Seat Race Condition", () => {
 
   it("guarantees maximum 4 winners when 10 students concurrently book against one empty class (10 simultaneous -> 4 Confirmed, 6 Conflict)", async () => {
     // Target class: class_empty_03 (RoboPlay: First Lego Algorithms - initial 0/4 confirmed)
-    const targetClassId = "class_empty_03";
+    const targetClassId = "class_empty_04";
 
     // 1. Verify class starts with 0/4 confirmed students
     const initialClass = await prisma.trialClass.findUniqueOrThrow({
@@ -132,16 +132,16 @@ describe("Concurrency Test Suite: Last-Seat Race Condition", () => {
 
     // 2. Define 10 distinct students across 10 distinct parents
     const contestants = [
-      { parentId: "parent_01", studentId: "child_01_b", studentName: "Mia" },
+      { parentId: "parent_01", studentId: "child_01_b", studentName: "Olivia" },
       { parentId: "parent_02", studentId: "child_02_b", studentName: "Emma" },
-      { parentId: "parent_03", studentId: "child_03_b", studentName: "Olivia" },
-      { parentId: "parent_04", studentId: "child_04_b", studentName: "Lucas" },
-      { parentId: "parent_05", studentId: "child_05_b", studentName: "Oliver" },
-      { parentId: "parent_06", studentId: "child_06_b", studentName: "Mason" },
-      { parentId: "parent_07", studentId: "child_07_b", studentName: "Ethan" },
-      { parentId: "parent_08", studentId: "child_08_b", studentName: "Harper" },
-      { parentId: "parent_09", studentId: "child_09_b", studentName: "Jack" },
-      { parentId: "parent_10", studentId: "child_10_b", studentName: "Ella" },
+      { parentId: "parent_03", studentId: "child_03_b", studentName: "Charlotte" },
+      { parentId: "parent_04", studentId: "child_04_b", studentName: "Amelia" },
+      { parentId: "parent_05", studentId: "child_05_b", studentName: "Sophia" },
+      { parentId: "parent_06", studentId: "child_06_b", studentName: "Isabella" },
+      { parentId: "parent_07", studentId: "child_07_b", studentName: "Mia" },
+      { parentId: "parent_08", studentId: "child_08_b", studentName: "Evelyn" },
+      { parentId: "parent_09", studentId: "child_09_b", studentName: "Harper" },
+      { parentId: "parent_10", studentId: "child_10_b", studentName: "Camila" },
     ];
 
     // 3. Initiate all 10 bookings (all succeed because class is initially empty)
