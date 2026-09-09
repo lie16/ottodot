@@ -36,7 +36,7 @@ docker push registry.example.com/ottodot/booking:latest
 docker compose -f docker-compose.staging.yml pull
 
 # Run database migrations on staging
-docker compose -f docker-compose.staging.yml run --rm app npm run db:migrate:prod
+docker compose -f docker-compose.staging.yml run --rm app pnpm run db:migrate:deploy
 
 # Zero-downtime container recreate
 docker compose -f docker-compose.staging.yml up -d --remove-orphans
@@ -49,7 +49,7 @@ docker compose -f docker-compose.staging.yml up -d --remove-orphans
 ```bash
 # Pull and apply to production
 docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml run --rm app npm run db:migrate:prod
+docker compose -f docker-compose.prod.yml run --rm app pnpm run db:migrate:deploy
 docker compose -f docker-compose.prod.yml up -d
 
 # Health check verification
