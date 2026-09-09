@@ -49,14 +49,18 @@ curl -i http://localhost:3000/api/health
 ## 4. Test Suite Execution
 
 ```bash
-# Run all unit and integration tests
+# Run all unit and integration tests (16 tests across 5 files)
 pnpm run test
 
-# Run race condition concurrency tests specifically
+# Run all concurrency tests (Race Condition, Stampede, Duplicate Spam)
 pnpm run test:concurrency
 
 # Run tests in watch mode
 pnpm run test:watch
+
+# Run specific test suites directly
+npx vitest tests/payment.test.ts
+npx vitest tests/invariants.test.ts
 
 # Inspect structured test-case audit logs from database
 pnpm run logs

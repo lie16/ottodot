@@ -208,6 +208,86 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
     }
   };
 
+  // Test 1c: 10-Spam Duplicate Stampede (Same Student)
+  const runDuplicateSpamTest = async () => {
+    try {
+      setRunningTest("spam");
+      setLastResult(null);
+
+      // Target class: class_empty_01
+      const targetClassId = "class_empty_01";
+      const studentId = "child_05_a";
+      const parentId = "parent_05";
+
+      // Step A: Initiate 10 pending bookings
+      const initResponses = await Promise.all(
+        Array.from({ length: 10 }).map(() =>
+          fetch("/api/bookings/initiate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": parentId,
+              "x-user-role": "Parent",
+            },
+            body: JSON.stringify({ classId: targetClassId, studentId }),
+          })
+        )
+      );
+
+      const initData = await Promise.all(initResponses.map((r) => r.json()));
+      const validInitiations = initData.filter((d) => d.bookingId);
+
+      if (validInitiations.length < 10) {
+        setLastResult({
+          title: "10-Spam Duplicate: Initiation Incomplete",
+          success: false,
+          status: 400,
+          details: "Could not initiate all 10 duplicate bookings. Please reset the database first.",
+          tag: "[TEST:DUPLICATE_BOOKING]",
+        });
+        return;
+      }
+
+      // Step B: Submit 10 simultaneous payment confirmations for the exact same student
+      const confirmResponses = await Promise.all(
+        validInitiations.map((d) =>
+          fetch("/api/bookings/confirm", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-user-id": parentId,
+              "x-user-role": "Parent",
+            },
+            body: JSON.stringify({
+              bookingId: d.bookingId,
+              paymentMethod: "pm_card_success",
+            }),
+          })
+        )
+      );
+
+      const successCount = confirmResponses.filter((r) => r.status === 200).length;
+      const conflictCount = confirmResponses.filter((r) => r.status === 409).length;
+      const passed = successCount === 1 && conflictCount === 9;
+
+      setLastResult({
+        title: passed
+          ? "10-Spam Duplicate Passed: Exactly 1 Confirmed & 9 Rejected"
+          : `10-Spam Duplicate: Unexpected Result (${successCount} won, ${conflictCount} rejected)`,
+        success: passed,
+        status: passed ? 200 : 500,
+        details: `Dispatched 10 concurrent payments simultaneously for the EXACT SAME student and class. Results: ${successCount} CONFIRMED (HTTP 200), ${conflictCount} REJECTED_DUPLICATE (HTTP 409). The student only takes up 1 seat!`,
+        tag: "[TEST:DUPLICATE_BOOKING]",
+      });
+
+      onTestCompleted();
+    } catch (err) {
+      console.error("10-spam duplicate test error:", err);
+    } finally {
+      setRunningTest(null);
+    }
+  };
+
   // Test 2: Duplicate Booking Attempt
   const runDuplicateBookingTest = async () => {
     try {
@@ -449,6 +529,26 @@ export function AdminTestRunner({ onTestCompleted }: { onTestCompleted: () => vo
           </div>
           <p className="text-[11px] text-blue-800/80 leading-relaxed">
             Attempts re-booking an already enrolled child in the same class.
+          </p>
+        </button>
+
+        {/* 10-Spam Duplicate Stampede */}
+        <button
+          disabled={runningTest !== null}
+          onClick={runDuplicateSpamTest}
+          className="p-3.5 rounded-xl border border-cyan-200 bg-cyan-50/60 hover:bg-cyan-100/60 text-cyan-950 text-left transition-all disabled:opacity-50 cursor-pointer group"
+        >
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="font-bold flex items-center gap-1.5 text-cyan-800">
+              <Copy className="w-4 h-4 text-cyan-600" />
+              3b. 10-Spam Dup
+            </span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-200/70 font-semibold">
+              1 Win & 9 Cancels
+            </span>
+          </div>
+          <p className="text-[11px] text-cyan-800/80 leading-relaxed">
+            10 concurrent requests for the EXACT SAME student and class.
           </p>
         </button>
 

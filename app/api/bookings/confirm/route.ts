@@ -146,7 +146,31 @@ export async function POST(request: Request) {
           };
         }
 
-        // C. Seat is available -> Atomically confirm booking and increment seat count
+        // C. Flash-Sale Concurrency Check 2: Did this specific student ALREADY win a seat in a concurrent request?
+        const existingConfirmed = await tx.booking.findFirst({
+          where: {
+            classId,
+            studentId: booking.studentId,
+            status: "CONFIRMED",
+          },
+        });
+
+        if (existingConfirmed) {
+          // This student already secured a seat in this class via another request.
+          // Reject this duplicate confirmation.
+          await tx.booking.update({
+            where: { id: bookingId },
+            data: { status: "CANCELLED" },
+          });
+
+          return {
+            outcome: "REJECTED_DUPLICATE" as const,
+            confirmedCount: lockedClass.confirmed_count,
+            maxCapacity: lockedClass.max_capacity,
+          };
+        }
+
+        // D. Seat is available -> Atomically confirm booking and increment seat count
         const newConfirmedCount = lockedClass.confirmed_count + 1;
 
         await tx.trialClass.update({
@@ -184,6 +208,31 @@ export async function POST(request: Request) {
     );
 
     // 4. Handle Transaction Results & Tagged Audit Logging
+    if (result.outcome === "REJECTED_DUPLICATE") {
+      await logAuditEvent(
+        "[TEST:DUPLICATE_BOOKING]",
+        "DUPLICATE_CONFIRMATION_REJECTED",
+        {
+          bookingId,
+          classId,
+          classTitle,
+          studentName,
+          userParentId: userId,
+          reason: "User sent multiple concurrent payment confirmations for the same student",
+        },
+        "WARN"
+      );
+
+      return NextResponse.json(
+        {
+          error: "Duplicate Booking: This student is already confirmed for this class.",
+          bookingId,
+          status: "CANCELLED",
+        },
+        { status: 409 }
+      );
+    }
+
     if (result.outcome === "REJECTED_CAPACITY_FULL") {
       await logAuditEvent(
         "[TEST:RACE_CONDITION]",
