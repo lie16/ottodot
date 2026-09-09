@@ -227,4 +227,74 @@ describe("Concurrency Test Suite: Last-Seat Race Condition", () => {
     });
     expect(dbRejectedCount).toBe(6);
   });
+
+  it("prevents the same student from taking multiple seats when spamming 10 concurrent confirmation requests (Duplicate Booking Stampede)", async () => {
+    // Target class: class_empty_05 (another empty class)
+    const targetClassId = "class_empty_05";
+    const studentId = "child_05_a";
+    const parentId = "parent_05";
+
+    // 1. Initiate 10 pending bookings for the exact same student and class
+    const initiatedBookings: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const initReq = new Request("http://localhost/api/bookings/initiate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": parentId,
+          "x-user-role": "Parent",
+        },
+        body: JSON.stringify({ classId: targetClassId, studentId }),
+      });
+      const initRes = await initiateBooking(initReq);
+      expect(initRes.status).toBe(201);
+      const data = await initRes.json();
+      initiatedBookings.push(data.bookingId);
+    }
+
+    expect(initiatedBookings.length).toBe(10);
+
+    // 2. Fire 10 simultaneous confirmations
+    const confirmPromises = initiatedBookings.map((bookingId) =>
+      confirmBooking(
+        new Request("http://localhost/api/bookings/confirm", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-id": parentId,
+            "x-user-role": "Parent",
+          },
+          body: JSON.stringify({
+            bookingId,
+            paymentMethod: "pm_card_success",
+          }),
+        })
+      )
+    );
+
+    const responses = await Promise.all(confirmPromises);
+
+    // 3. Exactly ONE should succeed, the other 9 should be rejected as duplicates
+    const statuses = responses.map((r) => r.status);
+    const successResponses = responses.filter((r) => r.status === 200);
+    const conflictResponses = responses.filter((r) => r.status === 409);
+
+    expect(successResponses.length).toBe(1);
+    expect(conflictResponses.length).toBe(9);
+
+    // 4. Verify Database state: Only 1 confirmed seat for this student
+    const updatedClass = await prisma.trialClass.findUniqueOrThrow({
+      where: { id: targetClassId },
+    });
+    expect(updatedClass.confirmedCount).toBe(1);
+
+    const dbConfirmedCount = await prisma.booking.count({
+      where: {
+        classId: targetClassId,
+        studentId: studentId,
+        status: "CONFIRMED",
+      },
+    });
+    expect(dbConfirmedCount).toBe(1);
+  });
 });
