@@ -57,4 +57,10 @@ pnpm run test:concurrency
 
 # Run tests in watch mode
 pnpm run test:watch
+
+# Inspect structured test-case audit logs from database
+pnpm run logs
+
+# Inspect persistent disk audit log file
+cat logs/audit.log
 ```
