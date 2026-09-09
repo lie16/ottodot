@@ -1,4 +1,20 @@
 import { prisma } from "./prisma";
+import fs from "fs";
+import path from "path";
+
+const logDir = path.resolve(process.cwd(), "logs");
+const logFilePath = path.join(logDir, "audit.log");
+
+function appendToLogFile(line: string) {
+  try {
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    fs.appendFileSync(logFilePath, line + "\n", "utf8");
+  } catch {
+    // Non-blocking file append
+  }
+}
 
 export type TestTag =
   | "[TEST:RACE_CONDITION]"
@@ -34,7 +50,9 @@ export async function logAuditEvent(
   const timestampIso = now.toISOString();
 
   // 1. Log formatted stdout for terminal/CLI evaluators
-  console.log(`[${timestampIso}] [${level}] ${tag} [${event}] ${detailsStr}`);
+  const formattedLine = `[${timestampIso}] [${level}] ${tag} [${event}] ${detailsStr}`;
+  console.log(formattedLine);
+  appendToLogFile(formattedLine);
 
   const entry: LogEntry = {
     id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
