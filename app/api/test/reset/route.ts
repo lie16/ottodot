@@ -3,9 +3,9 @@ import { getUserContext } from "@/lib/auth";
 import { runSeed } from "@/prisma/seed";
 import { logAuditEvent } from "@/lib/logger";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const { userId, role } = getUserContext();
+    const { userId, role } = getUserContext(request);
 
     // Critical Security Invariant: Reset is strictly Admin-only
     if (role !== "Admin") {

@@ -7,10 +7,22 @@ export interface UserContext {
   role: UserRole | null;
 }
 
-export function getUserContext(): UserContext {
-  const reqHeaders = headers();
-  const userId = reqHeaders.get("x-user-id");
-  const role = reqHeaders.get("x-user-role") as UserRole | null;
+export function getUserContext(request?: Request): UserContext {
+  let userId: string | null = null;
+  let role: UserRole | null = null;
+
+  if (request && request.headers) {
+    userId = request.headers.get("x-user-id");
+    role = request.headers.get("x-user-role") as UserRole | null;
+  } else {
+    try {
+      const reqHeaders = headers();
+      userId = reqHeaders.get("x-user-id");
+      role = reqHeaders.get("x-user-role") as UserRole | null;
+    } catch {
+      // When called outside Next.js request context (e.g. unit tests)
+    }
+  }
 
   return {
     userId: userId || null,
@@ -18,23 +30,23 @@ export function getUserContext(): UserContext {
   };
 }
 
-export function requireAdmin(): void {
-  const { role } = getUserContext();
+export function requireAdmin(request?: Request): void {
+  const { role } = getUserContext(request);
   if (role !== "Admin") {
     throw new Error("FORBIDDEN_ADMIN_ONLY");
   }
 }
 
-export function requireTeacher(): string {
-  const { userId, role } = getUserContext();
+export function requireTeacher(request?: Request): string {
+  const { userId, role } = getUserContext(request);
   if (role !== "Teacher" || !userId) {
     throw new Error("FORBIDDEN_TEACHER_ONLY");
   }
   return userId;
 }
 
-export function requireParent(): string {
-  const { userId, role } = getUserContext();
+export function requireParent(request?: Request): string {
+  const { userId, role } = getUserContext(request);
   if (role !== "Parent" || !userId) {
     throw new Error("FORBIDDEN_PARENT_ONLY");
   }

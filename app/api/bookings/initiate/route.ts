@@ -5,7 +5,7 @@ import { logAuditEvent } from "@/lib/logger";
 
 export async function POST(request: Request) {
   try {
-    const { userId, role } = getUserContext();
+    const { userId, role } = getUserContext(request);
 
     if (role !== "Parent" || !userId) {
       await logAuditEvent(

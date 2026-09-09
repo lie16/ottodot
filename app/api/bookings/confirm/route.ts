@@ -17,7 +17,7 @@ interface LockedClassRow {
 
 export async function POST(request: Request) {
   try {
-    const { userId } = getUserContext();
+    const { userId } = getUserContext(request);
     const body: ConfirmRequest = await request.json();
     const { bookingId, paymentMethod = "pm_card_success" } = body;
 

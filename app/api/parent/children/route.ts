@@ -4,9 +4,9 @@ import { getUserContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { userId, role } = getUserContext();
+    const { userId, role } = getUserContext(request);
 
     if (role !== "Parent" || !userId) {
       return NextResponse.json(

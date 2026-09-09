@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: { classId: string } }
 ) {
   try {
-    const { userId, role } = getUserContext();
+    const { userId, role } = getUserContext(request);
     const classId = params.classId;
 
     if (!classId) {
